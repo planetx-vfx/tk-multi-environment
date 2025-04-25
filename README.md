@@ -1,5 +1,5 @@
-![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/nfa-vfxim/tk-multi-environment?include_prereleases)
-![GitHub](https://img.shields.io/github/license/nfa-vfxim/tk-multi-environment)
+![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/planetx-vfx/tk-multi-environment?include_prereleases)
+![GitHub](https://img.shields.io/github/license/planetx-vfx/tk-multi-environment)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 
