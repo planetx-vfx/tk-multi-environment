@@ -59,11 +59,11 @@ supported_engines: ['tk-houdini', 'tk-maya']
 requires_shotgun_fields:
 
 # user facing metadata
-display_name: "ShotGrid Startup App"
-description: "An app that handles extra business logic at the startup of an engine."
+display_name: "ShotGrid Environment App"
+description: "An app that handles setting up environment variables at the startup of an engine."
 
 # url for the documentation of this app
-documentation_url: "https://wiki.vfxim.nl/"
+documentation_url: "https://github.com/planetx-vfx/tk-multi-environment"
 
 # minimum required version of the core api this app supports
 requires_core_version: "v0.14.37"

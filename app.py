@@ -23,9 +23,9 @@
 import sgtk
 
 
-class TkMultiStartup(sgtk.platform.Application):
+class TkMultiEnvironment(sgtk.platform.Application):
     def init_app(self):
         """Initialise the app."""
-        startup = self.import_module("tk_multi_startup")
+        app = self.import_module("app")
 
-        startup.Handler(self)
+        app.Handler(self)

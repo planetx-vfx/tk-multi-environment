@@ -181,7 +181,7 @@ class Handler:
             except Exception as e:
                 self.logger.error(
                     "An error occurred while getting the default configured frame range. Make sure the configuration for "
-                    "tk-houdini-startup is correct. %s" % str(e)
+                    "tk-multi-environment is correct. %s" % str(e)
                 )
 
         else:
@@ -210,5 +210,5 @@ class Handler:
         except Exception as e:
             self.logger.error(
                 "An error occurred while getting the default configured frame range. Make sure the configuration for "
-                "tk-multi-startup is correct. %s" % str(e)
+                "tk-multi-environment is correct. %s" % str(e)
             )
