@@ -1,6 +1,8 @@
-tk-multi-environment is a Shotgun Toolkit app that allows you to add some logic to the startup process of the engine. At default, the app sets the frame range to the frame range found in the configuration. If one can't be found it will default to 1001-1240. This and other things can be configured through your Shotgun configuration. 
+tk-multi-environment is a ShotGrid Toolkit app that allows you to add environment values to your engine based on
+ShotGrid fields and templates from the current context.
 
 ## Environment variables
+
 - `SG_PROJECT_NAME`: Project name
 - `SG_PROJECT_ROOT`: Project file root
 - `SG_USER_NAME`: Current username
@@ -12,17 +14,18 @@ tk-multi-environment is a Shotgun Toolkit app that allows you to add some logic 
 - `SG_VERSION`: File version
 - `SG_VERSION_S`: File version as string (`v{version}`)
 - Asset context:
-  - `SG_ASSET`: Asset name
-  - `SG_ASSET_ROOT`: Asset file root
+    - `SG_ASSET`: Asset name
+    - `SG_ASSET_ROOT`: Asset file root
 - Sequence context:
-  - `SG_SEQUENCE`: Sequence name
-  - `SG_SEQUENCE_ROOT`: Sequence file root
+    - `SG_SEQUENCE`: Sequence name
+    - `SG_SEQUENCE_ROOT`: Sequence file root
 - Shot context:
-  - `SG_SEQUENCE`: Sequence name
-  - `SG_SHOT`: Shot name
-  - `SG_SHOT_ROOT`: Shot file root
+    - `SG_SEQUENCE`: Sequence name
+    - `SG_SHOT`: Shot name
+    - `SG_SHOT_ROOT`: Shot file root
 
 ## Example configuration
+
 ```yaml
 settings.tk-multi-environment.houdini.shot_step:
   work_file_template: houdini_shot_work
