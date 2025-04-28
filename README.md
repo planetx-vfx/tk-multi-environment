@@ -34,6 +34,22 @@ tk-multi-environment is a Shotgun Toolkit app that allows you to add some logic 
   - `SG_SHOT`: Shot name
   - `SG_SHOT_ROOT`: Shot file root
 
+## Example configuration
+```yaml
+settings.tk-multi-environment.houdini.shot_step:
+  work_file_template: houdini_shot_work
+  context_root_template: shot_root
+  field_variables:
+    - entity_type: Project
+      variables:
+        SG_PROJECT_CODE: sg_short_name
+        SG_FPS: sg_frame_rate
+  template_variables:
+    - name: JOB
+      template: shot_work_area_houdini
+  location: "@apps.tk-multi-environment.location"
+```
+
 ## Requirements
 
 | ShotGrid version | Core version | Engine version |
