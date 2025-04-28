@@ -20,8 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import maya.cmds as cmds
+
 import sgtk
-import hou
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
@@ -35,30 +36,10 @@ class Helper(HookBaseClass):
         """
         Get the file path of the currently opened file
         """
-        return hou.hipFile.path()
+        return cmds.file(q=True, sn=True)
 
-    def set_frame_range(self, frame_range_start, frame_range_end):
-        """Set the Houdini frame range and playback range to the input data."""
-
-        # set the frame range to frameRangeStart - frameRangeEnd
-        hou.playbar.setFrameRange(frame_range_start, frame_range_end)
-
-        # set the playback range to frameRangeStart - frameRangeEnd
-        hou.playbar.setPlaybackRange(frame_range_start, frame_range_end)
-
-        # set the timeline to the first frame
-        hou.setFrame(frame_range_start)
-
-    def set_fps(self, fps):
-        """
-        Set the framerate of the scene
-        """
-        hou.setFps(fps)
-
-    def additional_startup_settings(self, env):
+    def setup_environment(self, env):
         """
         This function is for all the extra commands that have to be executed on startup.
         """
-        # Add to Houdini Aliases for persistent values
-        for key, value in env.items():
-            hou.hscript(f"set -g {key} = {value}")
+        pass

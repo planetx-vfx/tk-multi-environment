@@ -1,17 +1,17 @@
 # MIT License
-
+#
 # Copyright (c) 2023 Netherlands Film Academy
-
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,10 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import os
-import re
 
 import sgtk
+
+from .settings import Settings
 
 
 class Handler:
@@ -35,39 +37,24 @@ class Handler:
         self.current_context = self.current_engine.context
         self.entity = self.current_context.entity
 
-        self.env = {}
+        self.settings = Settings(app)
 
-        # Setting FPS
-        fps = self.__get_default_fps
-        self.app.execute_hook_method(
-            key="helper_hook",
-            method_name="set_fps",
-            fps=fps,
-        )
+        self.settings.validate_fields()
+
+        self.env = {}
 
         if self.entity is not None:
             # Get data from ShotGrid
-            entity_id = self.entity["id"]
             entity_type = self.entity["type"]
 
-            filters = [["id", "is", entity_id]]
+            filters = [["id", "is", self.entity["id"]]]
 
-            columns = ["sg_cut_in", "sg_cut_out", "code"]
-
-            self.entity_data = self.sg.find_one(entity_type, filters, columns)
+            columns = self.settings.get_extra_fields(entity_type)
 
             if entity_type == "Shot":
-                # Setting Frame Range
-                frame_range = self.__get_frame_range()
-                frame_start = frame_range[0]
-                frame_end = frame_range[1]
+                columns.extend(["sg_cut_in", "sg_cut_out"])
 
-                self.app.execute_hook_method(
-                    key="helper_hook",
-                    method_name="set_frame_range",
-                    frame_range_start=frame_start,
-                    frame_range_end=frame_end,
-                )
+            self.entity_data = self.sg.find_one(entity_type, filters, columns)
 
         # Set environments
         self.__set_environments()
@@ -75,7 +62,7 @@ class Handler:
         # Run engine specific functions
         self.app.execute_hook_method(
             key="helper_hook",
-            method_name="additional_startup_settings",
+            method_name="setup_environment",
             env=self.env,
         )
 
@@ -84,131 +71,100 @@ class Handler:
         """Set ShotGrid environment variables"""
         env = {}
 
+        template_variables = self.app.get_setting("template_variables")
+        self.logger.debug(template_variables)
+
         project_name = self.current_context.project.get("name")
 
         project_data = self.sg.find_one(
-            "Project", [["name", "is", project_name]], ["sg_projectcode", "sg_fps"]
+            "Project",
+            [["name", "is", project_name]],
+            self.settings.get_extra_fields("Project"),
         )
 
         env["SG_PROJECT_NAME"] = project_name
-        env["SG_PROJECT_CODE"] = project_data.get("sg_projectcode")
         env["SG_PROJECT_ROOT"] = self.__fix_path(
             self.current_context._get_project_roots()[0]
         )
-        env["SG_FPS"] = str(project_data.get("sg_fps"))
         env["SG_USER_NAME"] = self.current_context.user.get("name")
-        env["SG_USER_ID"] = str(self.current_context.user.get("id"))
+        env["SG_USER_ID"] = self.current_context.user.get("id")
+
+        for key, value in self.settings.get_field_variables("Project").items():
+            env[key] = project_data.get(value)
+
+        fields: dict = self.current_context.to_dict()
 
         if self.entity:
             entity_name = self.entity["name"]
             entity_type = self.entity["type"]
             entity_id = self.entity["id"]
 
+            for key, value in self.settings.get_field_variables(entity_type).items():
+                env[key] = self.entity_data.get(value)
+
             env["SG_CONTEXT_TYPE"] = entity_type
-            env["SG_CONTEXT_ID"] = str(entity_id)
+            env["SG_CONTEXT_ID"] = entity_id
 
-            source_pattern = re.compile(
-                r"//nfa-vfxim-source.stud.ahk.nl/(\d+ejaar)_source/"
-            )
-            replacement = r"//nfa-vfxim-render.stud.ahk.nl/\1_render/"
+            template = self.app.get_template("context_root_template")
+            fields.update(self.current_context.as_template_fields(template))
+            root = self.__fix_path(template.apply_fields(fields))
 
-            if entity_type == "Asset":
-                template = self.app.get_template("asset_root")
-                fields = self.current_context.as_template_fields(template)
-                root = self.__fix_path(template.apply_fields(fields))
-                env["SG_ASSET"] = entity_name
-                env["SG_STEP"] = fields.get("Step")
-                env["SG_ASSET_ROOT"] = root
-                env["SG_ASSET_RENDER_ROOT"] = re.sub(source_pattern, replacement, root)
-
-                env["SG_SEQUENCE"] = "-"
-                env["SG_SHOT"] = "-"
-                env["SG_SHOT_ROOT"] = "-"
-                env["SG_SHOT_RENDER_ROOT"] = "-"
-
-            if entity_type == "Shot":
-                template = self.app.get_template("shot_root")
-                fields = self.current_context.as_template_fields(template)
-                root = self.__fix_path(template.apply_fields(fields))
-
-                env["SG_SHOT"] = entity_name
-                env["SG_SEQUENCE"] = fields.get("Sequence")
-                env["SG_STEP"] = fields.get("Step")
-                env["SG_SHOT_ROOT"] = root
-                env["SG_SHOT_RENDER_ROOT"] = re.sub(source_pattern, replacement, root)
-
-                env["SG_FSTART"] = str(self.entity_data.get("sg_cut_in"))
-                env["SG_FEND"] = str(self.entity_data.get("sg_cut_out"))
-
-                env["SG_ASSET"] = "-"
-                env["SG_ASSET_ROOT"] = "-"
-                env["SG_ASSET_RENDER_ROOT"] = "-"
-
-            work_template = self.app.get_template("work_file")
+            work_template = self.app.get_template("work_file_template")
             if work_template:
                 file = self.app.execute_hook_method(
                     key="helper_hook",
                     method_name="get_file_path",
                 )
-                fields = work_template.get_fields(file)
-                env["SG_NAME"] = fields.get("name")
-                env["SG_VERSION"] = str(fields.get("version"))
-                env["SG_VERSION_S"] = f"v{fields.get('version'):03}"
+                try:
+                    fields.update(work_template.get_fields(file))
+                    env["SG_NAME"] = fields.get("name")
+                    env["SG_VERSION"] = fields.get("version")
+                    env["SG_VERSION_S"] = f"v{fields.get('version'):03}"
+                except Exception as error:
+                    self.logger.error(
+                        'Could not resolve fields from current work file "%s": %s',
+                        file,
+                        error,
+                    )
+
+            env["SG_STEP"] = fields.get("Step")
+            env["SG_TASK"] = fields.get("Task")
+            env[f"SG_{entity_type.upper()}"] = entity_name
+            env[f"SG_{entity_type.upper()}_ROOT"] = root
+
+            if entity_type == "Shot":
+                env["SG_SEQUENCE"] = fields.get("Sequence")
+
+                env["SG_FSTART"] = self.entity_data.get("sg_cut_in")
+                env["SG_FEND"] = self.entity_data.get("sg_cut_out")
+
+            self.logger.debug("Current context for templates: %s", fields)
+
+            for tv in self.settings.template_variables:
+                try:
+                    path = tv.template.apply_fields(fields)
+                    env[tv.name] = self.__fix_path(path)
+                except Exception as error:
+                    self.logger.error(
+                        'An error occurred while applying fields to the template "%s": %s',
+                        tv.name,
+                        error,
+                    )
+
+        self.logger.debug(
+            f"Setting Houdini ShotGrid environment variables:\n{json.dumps(env, indent=4)}"
+        )
 
         self.env = env
         for key, value in env.items():
-            sgtk.util.append_path_to_env_var(key, value)
+            if value is None:
+                self.logger.error(
+                    'Env var "%s" resulted in a null value, skipping.', key
+                )
+                continue
 
-        self.logger.debug(f"Set Houdini ShotGrid environment variables: {env}")
+            sgtk.util.append_path_to_env_var(key, str(value))
 
     def __fix_path(self, path: str) -> str:
         """Fix Windows paths"""
         return path.replace(os.sep, "/")
-
-    def __get_frame_range(self):
-        """Get the configured frame range integers."""
-
-        # create an empty list to fill with frame range defaults
-        frame_range = []
-
-        frame_start = self.entity_data["sg_cut_in"]
-        frame_end = self.entity_data["sg_cut_out"]
-
-        if frame_start is None:
-            try:
-                frame_range.append(self.app.get_setting("frame_range_default_start"))
-                frame_range.append(self.app.get_setting("frame_range_default_end"))
-            except Exception as e:
-                self.logger.error(
-                    "An error occurred while getting the default configured frame range. Make sure the configuration for "
-                    "tk-multi-environment is correct. %s" % str(e)
-                )
-
-        else:
-            frame_range.append(frame_start)
-            frame_range.append(frame_end)
-
-        return frame_range
-
-    @property
-    def __get_default_fps(self):
-        """Get the configured fps integer."""
-
-        # get fps setting
-        try:
-            project_name = self.current_context.project["name"]
-
-            fps = self.sg.find_one(
-                "Project", [["name", "is", project_name]], ["sg_fps"]
-            ).get("sg_fps")
-
-            if fps is None:
-                fps = self.app.get_setting("fps_default")
-
-            return fps
-
-        except Exception as e:
-            self.logger.error(
-                "An error occurred while getting the default configured frame range. Make sure the configuration for "
-                "tk-multi-environment is correct. %s" % str(e)
-            )
